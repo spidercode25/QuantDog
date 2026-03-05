@@ -1,0 +1,14 @@
+{
+  "include": ["backend", "typings"],
+  "stubPath": "typings",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownParameterType": false,
+  "reportUntypedFunctionDecorator": false,
+  "reportUnusedFunction": false,
+  "reportDeprecated": false,
+  "reportAny": false,
+  "reportExplicitAny": false
+}

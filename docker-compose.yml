@@ -1,0 +1,45 @@
+version: "3.9"
+
+x-backend-base: &backend-base
+  image: quantdog-backend:dev
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  volumes:
+    - ./logs:/app/logs
+  environment:
+    PYTHONUNBUFFERED: "1"
+    RESEARCH_ENABLED: "false"
+    DATABASE_URL: "postgresql://quantdog:quantdog@db:5432/quantdog"
+  depends_on:
+    - db
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: quantdog
+      POSTGRES_USER: quantdog
+      POSTGRES_PASSWORD: quantdog
+    volumes:
+      - quantdog_pg_data:/var/lib/postgresql/data
+
+  api:
+    <<: *backend-base
+    command: ["python", "run_api.py"]
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *backend-base
+    command: ["python", "run_worker.py"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RESEARCH_ENABLED: "false"
+      DATABASE_URL: "postgresql://quantdog:quantdog@db:5432/quantdog"
+      WORKER_NAME: "quantdog-worker"
+      WORKER_HEARTBEAT_SECONDS: "10"
+
+volumes:
+  quantdog_pg_data:
+    name: quantdog_pg_data
