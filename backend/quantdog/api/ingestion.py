@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false, reportAttributeAccessIssue=false, reportArgumentType=false
+
 # Ingestion API endpoints
 
 from datetime import datetime
@@ -13,7 +15,7 @@ from quantdog.jobs import queue
 ingestion_bp = Blueprint("ingestion", __name__, url_prefix="/api/v1")
 
 
-@ingestion_bp.post("/ingestions")
+@ingestion_bp.post("/ingestions")  # type: ignore
 def create_ingestion():
     """Enqueue a bar ingestion job.
     

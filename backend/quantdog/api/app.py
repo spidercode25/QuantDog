@@ -1,8 +1,8 @@
-# pyright: reportMissingImports=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownParameterType=false, reportUntypedFunctionDecorator=false, reportUnusedFunction=false
+# pyright: reportMissingImports=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownParameterType=false, reportUntypedFunctionDecorator=false, reportUnusedFunction=false, reportAttributeAccessIssue=false
 
 from flask import Flask, jsonify
 
-from quantdog.config import get_settings  # pyright: ignore[reportImplicitRelativeImport]
+from quantdog.config import get_settings, load_env  # pyright: ignore[reportImplicitRelativeImport]
 from quantdog.api.envelope import error, success  # pyright: ignore[reportImplicitRelativeImport]
 from quantdog.infra.db import check_db_connectivity  # pyright: ignore[reportImplicitRelativeImport]
 from quantdog.api.instruments import instruments_bp  # pyright: ignore[reportImplicitRelativeImport]
@@ -11,9 +11,12 @@ from quantdog.api.bars import bars_bp  # pyright: ignore[reportImplicitRelativeI
 from quantdog.api.indicators import indicators_bp  # pyright: ignore[reportImplicitRelativeImport]
 from quantdog.api.analysis import analysis_bp  # pyright: ignore[reportImplicitRelativeImport]
 from quantdog.api.research import research_bp  # pyright: ignore[reportImplicitRelativeImport]
+from quantdog.api.market import market_bp  # pyright: ignore[reportImplicitRelativeImport]
+from quantdog.api.stocks import stocks_bp  # pyright: ignore[reportImplicitRelativeImport]
 
 
 def create_app() -> Flask:
+    load_env()
     app = Flask(__name__)
     settings = get_settings()
     
@@ -24,6 +27,8 @@ def create_app() -> Flask:
     app.register_blueprint(indicators_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(research_bp)
+    app.register_blueprint(market_bp)
+    app.register_blueprint(stocks_bp)
 
     @app.get("/health")
     def health():

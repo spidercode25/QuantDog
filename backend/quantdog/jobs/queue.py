@@ -14,6 +14,32 @@ from sqlalchemy import text
 logger = logging.getLogger("quantdog.jobs.queue")
 
 
+def _ensure_jobs_table(engine) -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS jobs (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    payload TEXT NOT NULL DEFAULT '{}',
+                    state TEXT NOT NULL,
+                    dedupe_key TEXT NOT NULL,
+                    locked_by TEXT,
+                    locked_at TIMESTAMP,
+                    heartbeat_at TIMESTAMP,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    max_attempts INTEGER NOT NULL DEFAULT 3,
+                    last_error TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+        conn.commit()
+
+
 def enqueue_job(engine, *, kind: str, payload: dict[str, Any], dedupe_key: str | None = None) -> str | None:
     """Enqueue a new job.
     
@@ -24,6 +50,8 @@ def enqueue_job(engine, *, kind: str, payload: dict[str, Any], dedupe_key: str |
     
     if dedupe_key is None:
         dedupe_key = f"{kind}:{job_id}"
+
+    _ensure_jobs_table(engine)
     
     # Convert payload to JSON string for SQLite compatibility
     payload_str = json.dumps(payload)

@@ -1,13 +1,15 @@
+# pyright: reportMissingImports=false, reportAttributeAccessIssue=false, reportArgumentType=false
+
 # Research API endpoints
 
 import uuid
-from datetime import datetime
 
 from flask import Blueprint, request
 
 from quantdog.api.envelope import error, success
 from quantdog.config import get_settings
-from quantdog.jobs.queue import enqueue_job
+from quantdog.infra.sqlalchemy import get_engine
+from quantdog.jobs import queue
 from quantdog.research import (
     Horizon,
     ResearchRunStatus,
@@ -21,7 +23,7 @@ from quantdog.research.repository import (
 research_bp = Blueprint("research", __name__, url_prefix="/api/v1/research")
 
 
-@research_bp.post("/runs")
+@research_bp.post("/runs")  # type: ignore[arg-type]
 def create_research_run():
     """Create a new research run.
     
@@ -77,8 +79,16 @@ def create_research_run():
     }
     
     try:
-        enqueue_job(
-            database_url=settings.database_url,
+        if settings.database_url is None:
+            return error(
+                "Database not configured",
+                error_type="configuration_error",
+                detail="DATABASE_URL not set",
+            )
+
+        engine = get_engine(settings.database_url)
+        queue.enqueue_job(
+            engine,
             kind="research_run",
             payload=job_payload,
             dedupe_key=dedupe_key,
@@ -90,15 +100,18 @@ def create_research_run():
             detail=str(e)
         )
     
-    return success({
-        "run_id": run_id,
-        "symbol": symbol,
-        "horizon": horizon.value,
-        "status": ResearchRunStatus.PENDING.value,
-    }), 202
+    return success(
+        {
+            "run_id": run_id,
+            "symbol": symbol,
+            "horizon": horizon.value,
+            "status": ResearchRunStatus.PENDING.value,
+        },
+        status_code=202,
+    )
 
 
-@research_bp.get("/runs/<run_id>")
+@research_bp.get("/runs/<run_id>")  # type: ignore[arg-type]
 def get_research_run_status(run_id: str):
     """Get research run status and progress.
     
@@ -116,7 +129,11 @@ def get_research_run_status(run_id: str):
         )
     
     if settings.database_url is None:
-        return error("Database not configured", error_type="configuration_error")
+        return error(
+            "Database not configured",
+            error_type="configuration_error",
+            detail="DATABASE_URL not set",
+        )
     
     # Get run from DB
     run = get_research_run(settings.database_url, run_id)
@@ -153,7 +170,7 @@ def get_research_run_status(run_id: str):
     })
 
 
-@research_bp.get("/runs/<run_id>/result")
+@research_bp.get("/runs/<run_id>/result")  # type: ignore[arg-type]
 def get_research_run_result(run_id: str):
     """Get research run final result.
     
@@ -171,7 +188,11 @@ def get_research_run_result(run_id: str):
         )
     
     if settings.database_url is None:
-        return error("Database not configured", error_type="configuration_error")
+        return error(
+            "Database not configured",
+            error_type="configuration_error",
+            detail="DATABASE_URL not set",
+        )
     
     # Get run from DB
     run = get_research_run(settings.database_url, run_id)

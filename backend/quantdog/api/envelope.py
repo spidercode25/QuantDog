@@ -1,12 +1,14 @@
-# pyright: reportMissingImports=false, reportUnknownVariableType=false
+# pyright: reportMissingImports=false, reportUnknownVariableType=false, reportReturnType=false
 
 from __future__ import annotations
 
 from typing import Any
 
 from flask import jsonify
+from flask.typing import ResponseReturnValue
 
-def success(data: Any, *, msg: str = "success", status_code: int = 200) -> object:
+
+def success(data: Any, *, msg: str = "success", status_code: int = 200) -> ResponseReturnValue:
     """Return the standard success envelope."""
 
     return jsonify({"code": 1, "msg": msg, "data": data}), status_code
@@ -18,7 +20,7 @@ def error(
     error_type: str,
     detail: str,
     status_code: int = 400,
-) -> object:
+) -> ResponseReturnValue:
     """Return the standard error envelope."""
 
     return (

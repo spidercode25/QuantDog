@@ -7,7 +7,7 @@ import logging
 import signal
 import sys
 import time
-from typing import Any
+from typing import Any, Callable
 
 from quantdog.config import get_settings, load_env, validate_required_settings
 from quantdog.infra.sqlalchemy import get_engine
@@ -22,15 +22,17 @@ _engine = None
 
 
 # Registry of job handlers: kind -> callable(job_payload) -> result
-JOB_HANDLERS: dict[str, callable[[dict[str, Any]], Any]] = {}
+JOB_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {}
 
 
 # Import and register job handlers
 from quantdog.jobs.ingestion import handle_ingestion_job
+from quantdog.jobs.news_ingestion import handle_news_ingestion_job
 from quantdog.jobs.research import handle_research_run
 
 # Register handlers
 JOB_HANDLERS["ingest_bars"] = handle_ingestion_job
+JOB_HANDLERS["ingest_news"] = handle_news_ingestion_job
 JOB_HANDLERS["research_run"] = handle_research_run
 
 

@@ -7,3 +7,12 @@ alembic==1.13.1
 pydantic==2.10.6
 httpx==0.28.1
 yfinance==0.2.44
+
+# Memory system dependencies
+sentence-transformers==2.2.2
+numpy==1.24.3
+scipy==1.10.1
+
+# Optional: for faster vector search
+chromadb==0.4.18
+apscheduler==3.10.4

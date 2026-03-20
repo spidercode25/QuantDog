@@ -53,6 +53,21 @@ class Settings:
     worker_name: str
     worker_heartbeat_seconds: int
     log_dir: str
+    news_enabled: bool
+    opennews_base_url: str
+    opennews_token: str | None
+    news_limit: int
+    news_cache_max_age_hours: int
+    twitter_enabled: bool
+    twitter_base_url: str
+    twitter_token: str | None
+    twitter_limit: int
+    twelvedata_enabled: bool
+    twelvedata_base_url: str
+    twelvedata_api_key: str | None
+    twelvedata_interval: str
+    fred_base_url: str
+    fred_api_key: str | None
 
 
 def get_settings() -> Settings:
@@ -79,6 +94,31 @@ def get_settings() -> Settings:
 
     log_dir = os.getenv("LOG_DIR") or "/app/logs"
 
+    news_enabled = _parse_bool("NEWS_ENABLED", os.getenv("NEWS_ENABLED"), default=True)
+    opennews_base_url = os.getenv("OPENNEWS_BASE_URL") or "https://ai.6551.io"
+    opennews_token = os.getenv("OPENNEWS_TOKEN")
+    news_limit = _parse_int("NEWS_LIMIT", os.getenv("NEWS_LIMIT"), default=20)
+    news_cache_max_age_hours = _parse_int(
+        "NEWS_CACHE_MAX_AGE_HOURS",
+        os.getenv("NEWS_CACHE_MAX_AGE_HOURS"),
+        default=24,
+    )
+
+    twitter_enabled = _parse_bool("TWITTER_ENABLED", os.getenv("TWITTER_ENABLED"), default=True)
+    twitter_base_url = os.getenv("TWITTER_BASE_URL") or "https://ai.6551.io"
+    twitter_token = os.getenv("TWITTER_TOKEN")
+    twitter_limit = _parse_int("TWITTER_LIMIT", os.getenv("TWITTER_LIMIT"), default=20)
+
+    twelvedata_enabled = _parse_bool(
+        "TWELVEDATA_ENABLED", os.getenv("TWELVEDATA_ENABLED"), default=False
+    )
+    twelvedata_base_url = os.getenv("TWELVEDATA_BASE_URL") or "https://api.twelvedata.com"
+    twelvedata_api_key = os.getenv("TWELVEDATA_API_KEY")
+    twelvedata_interval = (os.getenv("TWELVEDATA_INTERVAL") or "1day").strip() or "1day"
+
+    fred_base_url = os.getenv("FRED_BASE_URL") or "https://api.stlouisfed.org/fred"
+    fred_api_key = os.getenv("FRED_API_KEY")
+
     return Settings(
         api_host=api_host,
         api_port=api_port,
@@ -88,6 +128,21 @@ def get_settings() -> Settings:
         worker_name=worker_name,
         worker_heartbeat_seconds=worker_heartbeat_seconds,
         log_dir=log_dir,
+        news_enabled=news_enabled,
+        opennews_base_url=opennews_base_url,
+        opennews_token=opennews_token,
+        news_limit=news_limit,
+        news_cache_max_age_hours=news_cache_max_age_hours,
+        twitter_enabled=twitter_enabled,
+        twitter_base_url=twitter_base_url,
+        twitter_token=twitter_token,
+        twitter_limit=twitter_limit,
+        twelvedata_enabled=twelvedata_enabled,
+        twelvedata_base_url=twelvedata_base_url,
+        twelvedata_api_key=twelvedata_api_key,
+        twelvedata_interval=twelvedata_interval,
+        fred_base_url=fred_base_url,
+        fred_api_key=fred_api_key,
     )
 
 

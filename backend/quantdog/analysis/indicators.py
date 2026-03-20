@@ -92,8 +92,18 @@ def calculate_indicators(bars: list[dict[str, Any]]) -> dict[str, Any]:
     if not bars:
         return {}
     
-    # Get closing prices (most recent last)
-    closes = [bar["close"] for bar in reversed(bars)]
+    # Normalize to chronological order (oldest -> newest), then compute indicators.
+    ordered_bars = sorted(
+        [bar for bar in bars if isinstance(bar, dict) and bar.get("close") is not None],
+        key=lambda b: (
+            str(b.get("bar_date") or ""),
+            str(b.get("ts_utc") or ""),
+        ),
+    )
+    closes = [float(bar["close"]) for bar in ordered_bars]
+
+    if not closes:
+        return {}
     
     # Calculate indicators
     sma20 = calculate_sma(closes, 20) if len(closes) >= 20 else None
@@ -116,5 +126,5 @@ def calculate_indicators(bars: list[dict[str, Any]]) -> dict[str, Any]:
         "macd_histogram": macd.get("histogram"),
         "recent_high": recent_high,
         "recent_low": recent_low,
-        "last_close": closes[-1] if closes else None
+        "last_close": closes[-1],
     }

@@ -104,6 +104,23 @@ def init_db():
                 FOREIGN KEY (run_id) REFERENCES research_runs(run_id)
             )
         """))
+
+        # Create news_items cache table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS news_items (
+                id TEXT PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                headline TEXT NOT NULL,
+                source TEXT,
+                published_at TEXT,
+                ts BIGINT,
+                url TEXT,
+                signal TEXT,
+                score REAL,
+                raw_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL
+            )
+        """))
         
         conn.commit()
     

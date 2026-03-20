@@ -32,6 +32,7 @@ from quantdog.research.llm_client import (
     StubLLMClient,
     NoopLLMClient,
     RealLLMClient,
+    MultiProviderLLMClient,
     create_llm_client,
 )
 
@@ -73,6 +74,7 @@ __all__ = [
     "StubLLMClient",
     "NoopLLMClient",
     "RealLLMClient",
+    "MultiProviderLLMClient",
     "create_llm_client",
     # Repository
     "create_research_run",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
 from typing import Any
@@ -25,6 +26,9 @@ def create_research_run(
     run_id = str(uuid.uuid4())
     requested_at = datetime.utcnow()
     
+    # Convert config to JSON for SQLite
+    config_json = json.dumps(config)
+    
     engine = get_engine(database_url)
     
     with engine.connect() as conn:
@@ -39,7 +43,7 @@ def create_research_run(
                 "symbol": symbol,
                 "requested_at": requested_at,
                 "status": ResearchRunStatus.PENDING.value,
-                "config": config,
+                "config": config_json,
             },
         )
         conn.commit()
@@ -162,6 +166,10 @@ def save_agent_output(
     """Save agent output (upsert on conflict)."""
     output_id = str(uuid.uuid4())
     
+    # Convert to JSON for SQLite
+    output_json = json.dumps(output)
+    validation_errors_json = json.dumps(validation_errors)
+    
     engine = get_engine(database_url)
     
     with engine.connect() as conn:
@@ -187,8 +195,8 @@ def save_agent_output(
                 "agent_name": agent_name,
                 "status": status.value,
                 "schema_version": schema_version,
-                "output": output,
-                "validation_errors": validation_errors,
+                "output": output_json,
+                "validation_errors": validation_errors_json,
                 "duration_ms": duration_ms,
                 "model_id": model_id,
             },
@@ -220,17 +228,20 @@ def get_agent_outputs(
     
     outputs = []
     for row in rows:
+        # Parse JSON fields
+        output_data = json.loads(row[4]) if row[4] else {}
+        validation_errors = json.loads(row[5]) if row[5] else []
+
         outputs.append(
             AgentOutput(
                 phase=row[0],
                 agent_name=row[1],
                 status=AgentStatus(row[2]),
-                schema_version=row[3],
-                output=row[4] or {},
-                validation_errors=row[5] or [],
+                output=output_data,
+                validation_errors=validation_errors,
                 duration_ms=row[6],
                 model_id=row[7],
             )
         )
-    
+
     return outputs
