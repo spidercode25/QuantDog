@@ -7,6 +7,7 @@ alembic==1.13.1
 pydantic==2.10.6
 httpx==0.28.1
 yfinance==0.2.44
+longbridge
 
 # Memory system dependencies
 sentence-transformers==2.2.2

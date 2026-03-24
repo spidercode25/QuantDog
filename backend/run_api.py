@@ -9,9 +9,9 @@ settings, then starts the Flask dev server.
 import logging
 import sys
 
-from quantdog.api import create_app  # pyright: ignore[reportImplicitRelativeImport]
-from quantdog.config import get_settings, load_env, validate_required_settings  # pyright: ignore[reportImplicitRelativeImport]
-from quantdog.utils import configure_logging  # pyright: ignore[reportImplicitRelativeImport]
+from api import create_app  # pyright: ignore[reportImplicitRelativeImport]
+from config import get_settings, load_env, validate_required_settings  # pyright: ignore[reportImplicitRelativeImport]
+from utils import configure_logging  # pyright: ignore[reportImplicitRelativeImport]
 
 
 def main() -> int:
@@ -28,7 +28,7 @@ def main() -> int:
     try:
         validate_required_settings(settings)
     except ValueError as e:
-        logging.getLogger("quantdog.config").error(str(e))
+        logging.getLogger("config").error(str(e))
         return 2
 
     app = create_app()
@@ -36,7 +36,7 @@ def main() -> int:
     host = settings.api_host
     port = settings.api_port
 
-    logging.getLogger("quantdog.api").info(
+    logging.getLogger("api").info(
         "starting (host=%s port=%s research_enabled=%s enable_ai_analysis=%s)",
         host,
         port,

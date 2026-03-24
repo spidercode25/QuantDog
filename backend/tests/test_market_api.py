@@ -12,13 +12,13 @@ def test_market_technical_success(monkeypatch):
     """Test POST /api/v1/market/technical returns success with stubbed service."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService
-    with patch("quantdog.api.market.MarketIntelService") as mock_service_class:
+    with patch("api.market.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_technical_analysis.return_value = {
             "symbol": "AAPL",
@@ -42,7 +42,7 @@ def test_market_technical_missing_symbol(monkeypatch):
     """Test POST /api/v1/market/technical returns 400 when symbol is missing."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -63,13 +63,13 @@ def test_market_intel_success(monkeypatch):
     """Test POST /api/v1/market/intel returns success with stubbed service."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService
-    with patch("quantdog.api.market.MarketIntelService") as mock_service_class:
+    with patch("api.market.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_news_twitter_analysis.return_value = {
             "symbol": "AAPL",
@@ -94,7 +94,7 @@ def test_market_intel_missing_symbol(monkeypatch):
     """Test POST /api/v1/market/intel returns 400 when symbol is missing."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -114,13 +114,13 @@ def test_market_macro_success(monkeypatch):
     """Test POST /api/v1/market/macro returns success with stubbed service."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService
-    with patch("quantdog.api.market.MarketIntelService") as mock_service_class:
+    with patch("api.market.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_macro_analysis.return_value = {
             "symbol": "AAPL",
@@ -144,7 +144,7 @@ def test_market_macro_missing_symbol(monkeypatch):
     """Test POST /api/v1/market/macro returns 400 when symbol is missing."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -164,13 +164,13 @@ def test_stocks_strategy_success(monkeypatch):
     """Test POST /api/v1/stocks/<symbol>/strategy returns success with stubbed service."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService
-    with patch("quantdog.api.stocks.MarketIntelService") as mock_service_class:
+    with patch("api.stocks.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_strategy.return_value = {
             "symbol": "AAPL",
@@ -195,13 +195,13 @@ def test_stocks_strategy_value_error(monkeypatch):
     """Test POST /api/v1/stocks/<symbol>/strategy handles ValueError from service."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService to raise ValueError
-    with patch("quantdog.api.stocks.MarketIntelService") as mock_service_class:
+    with patch("api.stocks.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_strategy.side_effect = ValueError("Invalid symbol")
         mock_service_class.return_value = mock_service
@@ -221,13 +221,13 @@ def test_stocks_monitor_batch_success(monkeypatch):
     """Test POST /api/v1/stocks/monitor returns success with valid symbols list."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock the MarketIntelService
-    with patch("quantdog.api.stocks.MarketIntelService") as mock_service_class:
+    with patch("api.stocks.MarketIntelService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.get_monitoring.return_value = {
             "results": [
@@ -254,7 +254,7 @@ def test_stocks_monitor_batch_empty_symbols(monkeypatch):
     """Test POST /api/v1/stocks/monitor returns 400 when symbols is empty list."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -275,7 +275,7 @@ def test_stocks_monitor_batch_missing_symbols(monkeypatch):
     """Test POST /api/v1/stocks/monitor returns 400 when symbols field is missing."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -295,7 +295,7 @@ def test_stocks_monitor_batch_not_a_list(monkeypatch):
     """Test POST /api/v1/stocks/monitor returns 400 when symbols is not a list."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()

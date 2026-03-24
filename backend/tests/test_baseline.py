@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from quantdog.analysis.baseline import generate_baseline_analysis
+from analysis.baseline import generate_baseline_analysis
 
 
 def test_baseline_insufficient_data():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from quantdog.analysis.indicators import (
+from analysis.indicators import (
     calculate_indicators,
     calculate_macd,
     calculate_rsi,

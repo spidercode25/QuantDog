@@ -1,15 +1,15 @@
 """Worker entrypoint.
 
 Loads local .env (if present), configures logging, validates required runtime
-settings, then runs the long-lived worker loop via quantdog.jobs.runner.
+settings, then runs the long-lived worker loop via jobs.runner.
 """
 
 import logging
 import sys
 
-from quantdog.config import get_settings, load_env, validate_required_settings
-from quantdog.jobs.runner import main as run_runner
-from quantdog.utils import configure_logging
+from config import get_settings, load_env, validate_required_settings
+from jobs.runner import main as run_runner
+from utils import configure_logging
 
 
 def main() -> int:
@@ -26,10 +26,10 @@ def main() -> int:
     try:
         validate_required_settings(settings)
     except ValueError as e:
-        logging.getLogger("quantdog.config").error(str(e))
+        logging.getLogger("config").error(str(e))
         return 2
 
-    logging.getLogger("quantdog.worker").info(
+    logging.getLogger("worker").info(
         "starting (name=%s heartbeat_seconds=%s research_enabled=%s)",
         settings.worker_name,
         settings.worker_heartbeat_seconds,

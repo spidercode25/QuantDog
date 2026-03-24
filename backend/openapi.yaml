@@ -1,0 +1,938 @@
+openapi: 3.0.3
+info:
+  title: QuantDog API
+  version: 1.0.0
+  description: QuantDog stock market analysis API with technical indicators, sentiment analysis, and AI-powered research capabilities.
+  
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.quantdog.com
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Simple liveness probe
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /api/v1/health:
+    get:
+      summary: V1 Health check
+      description: Health check with standard v1 envelope format
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeSuccessHealth'
+
+  /api/v1/readyz:
+    get:
+      summary: Readiness probe
+      description: Check database connectivity and service readiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeSuccessReady'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/instruments/search:
+    get:
+      summary: Search instrument
+      description: Search for an instrument by symbol. Creates placeholder if not found.
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: true
+          description: Stock symbol to search
+      responses:
+        '200':
+          description: Instrument found or created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstrumentSearchResponse'
+
+  /api/v1/instruments/{symbol}:
+    get:
+      summary: Get instrument details
+      description: Get detailed information about a specific instrument
+      parameters:
+        - in: path
+          name: symbol
+          schema:
+            type: string
+          required: true
+          description: Stock symbol
+      responses:
+        '200':
+          description: Instrument details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstrumentResponse'
+        '404':
+          description: Instrument not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/instruments/{symbol}/bars:
+    get:
+      summary: Get OHLCV bars
+      description: Retrieve daily OHLCV bars for a symbol
+      parameters:
+        - in: path
+          name: symbol
+          schema:
+            type: string
+          required: true
+          description: Stock symbol
+        - in: query
+          name: start
+          schema:
+            type: string
+            format: date
+          required: false
+          description: Start date (YYYY-MM-DD)
+        - in: query
+          name: end
+          schema:
+            type: string
+            format: date
+          required: false
+          description: End date (YYYY-MM-DD)
+        - in: query
+          name: adjusted
+          schema:
+            type: boolean
+          required: false
+          description: Use adjusted prices
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+          required: false
+          description: Maximum rows to return
+      responses:
+        '200':
+          description: Bars retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarsResponse'
+
+  /api/v1/instruments/{symbol}/indicators:
+    get:
+      summary: Get technical indicators
+      description: Calculate and retrieve technical indicators for a symbol
+      parameters:
+        - in: path
+          name: symbol
+          schema:
+            type: string
+          required: true
+          description: Stock symbol
+        - in: query
+          name: start
+          schema:
+            type: string
+            format: date
+          required: false
+          description: Start date (YYYY-MM-DD)
+        - in: query
+          name: end
+          schema:
+            type: string
+            format: date
+          required: false
+          description: End date (YYYY-MM-DD)
+        - in: query
+          name: adjusted
+          schema:
+            type: boolean
+          required: false
+          description: Use adjusted prices
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 252
+          required: false
+          description: Maximum bars for calculation
+      responses:
+        '200':
+          description: Indicators calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndicatorsResponse'
+        '404':
+          description: No bars found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/analysis/fast:
+    post:
+      summary: Fast technical analysis
+      description: Perform fast rule-based technical analysis on a symbol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FastAnalysisRequest'
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FastAnalysisResponse'
+
+  /api/v1/market/technical:
+    post:
+      summary: Technical analysis
+      description: Perform comprehensive technical analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketAnalysisRequest'
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/v1/market/intel:
+    post:
+      summary: Market intelligence
+      description: Get news and Twitter sentiment analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketAnalysisRequest'
+      responses:
+        '200':
+          description: Intelligence gathered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketIntelResponse'
+
+  /api/v1/market/macro:
+    post:
+      summary: Macro analysis
+      description: Get macro environment analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketAnalysisRequest'
+      responses:
+        '200':
+          description: Macro analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MacroAnalysisResponse'
+
+  /api/v1/stocks/{symbol}/strategy:
+    post:
+      summary: Stock strategy
+      description: Get comprehensive strategy analysis for a stock
+      parameters:
+        - in: path
+          name: symbol
+          schema:
+            type: string
+          required: true
+          description: Stock symbol
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StrategyRequest'
+      responses:
+        '200':
+          description: Strategy analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyResponse'
+
+  /api/v1/stocks/{symbol}/monitor:
+    get:
+      summary: Monitor single stock
+      description: Get monitoring snapshot for a single stock
+      parameters:
+        - in: path
+          name: symbol
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: horizon
+          schema:
+            type: string
+            default: 1d
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Monitoring data retrieved
+          content:
+            application/json:
+              type: object
+
+  /api/v1/stocks/monitor:
+    post:
+      summary: Monitor multiple stocks
+      description: Get monitoring snapshots for multiple stocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorRequest'
+      responses:
+        '200':
+          description: Monitoring data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorResponse'
+
+  /api/v1/ingestions:
+    post:
+      summary: Create ingestion job
+      description: Enqueue a bar ingestion job to fetch and store market data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionRequest'
+      responses:
+        '201':
+          description: Job enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionResponse'
+
+  /api/v1/research/runs:
+    post:
+      summary: Create research run
+      description: Create a new AI-powered research run (requires RESEARCH_ENABLED=true)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResearchRunRequest'
+      responses:
+        '202':
+          description: Research run created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRunResponse'
+        '404':
+          description: Research feature disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/research/runs/{run_id}:
+    get:
+      summary: Get research run status
+      description: Get research run status and progress
+      parameters:
+        - in: path
+          name: run_id
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Run status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRunStatusResponse'
+
+  /api/v1/research/runs/{run_id}/result:
+    get:
+      summary: Get research run result
+      description: Get final research run results including all agent outputs
+      parameters:
+        - in: path
+          name: run_id
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Run results retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRunResultResponse'
+
+components:
+  schemas:
+    EnvelopeError:
+      type: object
+      required:
+        - code
+        - msg
+        - error
+      properties:
+        code:
+          type: integer
+          enum: [0]
+        msg:
+          type: string
+        error:
+          type: object
+          required:
+            - type
+            - detail
+          properties:
+            type:
+              type: string
+            detail:
+              type: string
+
+    EnvelopeSuccessHealth:
+      type: object
+      required:
+        - code
+        - msg
+        - data
+      properties:
+        code:
+          type: integer
+          enum: [1]
+        msg:
+          type: string
+          enum: [success]
+        data:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum: [ok]
+
+    EnvelopeSuccessReady:
+      type: object
+      required:
+        - code
+        - msg
+        - data
+      properties:
+        code:
+          type: integer
+          enum: [1]
+        msg:
+          type: string
+          enum: [success]
+        data:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum: [ok]
+
+    Instrument:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+          nullable: true
+        exchange:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+
+    InstrumentSearchResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                instrument:
+                  $ref: '#/components/schemas/Instrument'
+
+    InstrumentResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                instrument:
+                  $ref: '#/components/schemas/Instrument'
+
+    EnvelopeSuccess:
+      type: object
+      required:
+        - code
+        - msg
+        - data
+      properties:
+        code:
+          type: integer
+          enum: [1]
+        msg:
+          type: string
+        data:
+          type: object
+
+    BarsResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                bars:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Bar'
+                count:
+                  type: integer
+
+    Bar:
+      type: object
+      properties:
+        symbol:
+          type: string
+        bar_date:
+          type: string
+          format: date
+        ts_utc:
+          type: integer
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: integer
+        adjusted:
+          type: boolean
+        source:
+          type: string
+
+    Indicators:
+      type: object
+      properties:
+        sma20:
+          type: number
+          nullable: true
+        sma50:
+          type: number
+          nullable: true
+        rsi14:
+          type: number
+          nullable: true
+        macd:
+          type: number
+          nullable: true
+        macd_signal:
+          type: number
+          nullable: true
+        macd_histogram:
+          type: number
+          nullable: true
+        recent_high:
+          type: number
+          nullable: true
+        recent_low:
+          type: number
+          nullable: true
+        last_close:
+          type: number
+          nullable: true
+
+    IndicatorsResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                bars_count:
+                  type: integer
+                indicators:
+                  $ref: '#/components/schemas/Indicators'
+
+    Analysis:
+      type: object
+      properties:
+        symbol:
+          type: string
+        decision:
+          type: string
+          enum: [BUY, SELL, HOLD]
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        score:
+          type: number
+        reasons:
+          type: array
+          items:
+            type: string
+        indicators_snapshot:
+          $ref: '#/components/schemas/Indicators'
+
+    FastAnalysisRequest:
+      type: object
+      required:
+        - symbol
+      properties:
+        symbol:
+          type: string
+        horizon:
+          type: string
+          enum: [1d, 1w, 1m]
+          default: 1d
+
+    FastAnalysisResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                horizon:
+                  type: string
+                analysis:
+                  $ref: '#/components/schemas/Analysis'
+                ai_enabled:
+                  type: boolean
+                ai_error:
+                  type: string
+                  nullable: true
+                baseline_used:
+                  type: boolean
+
+    MarketAnalysisRequest:
+      type: object
+      required:
+        - symbol
+      properties:
+        symbol:
+          type: string
+        limit:
+          type: integer
+          default: 20
+
+    MarketIntelResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                news_count:
+                  type: integer
+                twitter_count:
+                  type: integer
+                sentiment:
+                  type: string
+                sentiment_score:
+                  type: number
+                source_status:
+                  type: object
+
+    MacroAnalysisResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                macro_theme:
+                  type: string
+                  enum: [growth, rates, inflation, liquidity, none]
+                yield_10y:
+                  type: number
+                  nullable: true
+                fed_rate:
+                  type: number
+                  nullable: true
+                cpi:
+                  type: number
+                  nullable: true
+                market_sentiment:
+                  type: string
+                  nullable: true
+
+    StrategyRequest:
+      type: object
+      properties:
+        horizon:
+          type: string
+          default: 1d
+        limit:
+          type: integer
+          default: 20
+
+    StrategyResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum: [BUY, SELL, HOLD]
+                confidence:
+                  type: integer
+                combined_score:
+                  type: number
+                inputs:
+                  type: object
+                risk_filter:
+                  type: object
+
+    MonitorRequest:
+      type: object
+      required:
+        - symbols
+      properties:
+        symbols:
+          type: array
+          items:
+            type: string
+        horizon:
+          type: string
+          default: 1d
+        limit:
+          type: integer
+          default: 20
+
+    MonitorResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                alerts:
+                  type: array
+                  items:
+                    type: object
+
+    IngestionRequest:
+      type: object
+      required:
+        - symbol
+        - start_date
+        - end_date
+      properties:
+        symbol:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        adjusted:
+          type: boolean
+          default: true
+
+    IngestionResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                job_id:
+                  type: string
+                  format: uuid
+                dedupe_key:
+                  type: string
+
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                message:
+                  type: string
+                dedupe_key:
+                  type: string
+
+    ResearchRunRequest:
+      type: object
+      required:
+        - symbol
+      properties:
+        symbol:
+          type: string
+        horizon:
+          type: string
+          enum: [1d, 1w, 1m, 3m, 6m, 1y]
+          default: 1w
+
+    ResearchRunResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                run_id:
+                  type: string
+                  format: uuid
+                symbol:
+                  type: string
+                horizon:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, running, completed, failed]
+
+    ResearchRunStatusResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                run_id:
+                  type: string
+                symbol:
+                  type: string
+                status:
+                  type: string
+                requested_at:
+                  type: string
+                  format: date-time
+                started_at:
+                  type: string
+                  format: date-time
+                completed_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                progress:
+                  type: object
+
+    ResearchRunResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                run_id:
+                  type: string
+                symbol:
+                  type: string
+                status:
+                  type: string
+                final_decision:
+                  type: string
+                  enum: [BUY, SELL, HOLD]
+                  nullable: true
+                final_confidence:
+                  type: integer
+                  nullable: true
+                agent_outputs:
+                  type: array
+                  items:
+                    type: object

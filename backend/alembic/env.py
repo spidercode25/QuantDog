@@ -15,8 +15,8 @@ if config.config_file_name is not None:
 
 def _get_database_url() -> str:
     # Keep env loading consistent with API/worker entrypoints.
-    from quantdog.config.settings import get_settings, load_env, validate_required_settings
-    from quantdog.infra.sqlalchemy import normalize_database_url_for_sqlalchemy
+    from config.settings import get_settings, load_env, validate_required_settings
+    from infra.sqlalchemy import normalize_database_url_for_sqlalchemy
 
     load_env()
     settings = get_settings()

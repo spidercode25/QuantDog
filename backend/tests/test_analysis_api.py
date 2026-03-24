@@ -12,7 +12,7 @@ def test_analysis_fast_invalid_json(monkeypatch):
     """Test POST /api/v1/analysis/fast with invalid JSON returns 415 (unsupported media type)."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -31,7 +31,7 @@ def test_analysis_fast_missing_symbol(monkeypatch):
     """Test POST /api/v1/analysis/fast with empty symbol returns 400."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -52,7 +52,7 @@ def test_analysis_fast_empty_symbol(monkeypatch):
     """Test POST /api/v1/analysis/fast with whitespace-only symbol returns 400."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -72,7 +72,7 @@ def test_analysis_fast_invalid_horizon(monkeypatch):
     """Test POST /api/v1/analysis/fast with invalid horizon returns 400."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -93,7 +93,7 @@ def test_analysis_fast_valid_horizons(monkeypatch):
     """Test POST /api/v1/analysis/fast accepts valid horizons."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -112,7 +112,7 @@ def test_analysis_fast_symbol_uppercase(monkeypatch):
     """Test POST /api/v1/analysis/fast normalizes symbol to uppercase."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -133,7 +133,7 @@ def test_analysis_fast_envelope_structure(monkeypatch):
     """Test POST /api/v1/analysis/fast returns proper envelope structure for errors."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -156,7 +156,7 @@ def test_analysis_fast_default_horizon(monkeypatch):
     """Test POST /api/v1/analysis/fast uses default horizon of 1d."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()

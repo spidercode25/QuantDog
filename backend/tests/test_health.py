@@ -9,7 +9,7 @@ def test_v1_health_envelope():
     # Set fake DATABASE_URL before importing app
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -30,7 +30,7 @@ def test_openapi_has_version():
     """Test /api/v1/openapi.json returns valid OpenAPI doc."""
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -49,7 +49,7 @@ def test_readyz_ok_with_sqlite_memory(monkeypatch):
     """Test /api/v1/readyz returns 200 with sqlite memory db."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()

@@ -14,7 +14,7 @@ def test_research_runs_feature_disabled(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "false")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -36,7 +36,7 @@ def test_research_runs_invalid_json(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -56,7 +56,7 @@ def test_research_runs_missing_symbol(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -78,7 +78,7 @@ def test_research_runs_empty_symbol(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -99,7 +99,7 @@ def test_research_runs_invalid_horizon(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -121,7 +121,7 @@ def test_research_runs_valid_horizons(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
@@ -141,13 +141,13 @@ def test_research_runs_database_not_configured(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock get_settings to return None for database_url
-    with patch("quantdog.api.research.get_settings") as mock_get_settings:
+    with patch("api.research.get_settings") as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.database_url = None
         mock_settings.research_enabled = True
@@ -170,18 +170,18 @@ def test_research_runs_enqueue_exception(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock queue.enqueue_job to raise exception
     # Also need to mock get_engine since it's called before enqueue
-    with patch("quantdog.api.research.get_engine") as mock_get_engine:
+    with patch("api.research.get_engine") as mock_get_engine:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("quantdog.api.research.queue.enqueue_job") as mock_enqueue:
+        with patch("api.research.queue.enqueue_job") as mock_enqueue:
             mock_enqueue.side_effect = Exception("Queue connection failed")
 
             response = client.post(
@@ -202,17 +202,17 @@ def test_research_runs_success(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     # Mock uuid and queue
     fixed_uuid = "12345678-1234-1234-1234-123456789abc"
-    with patch("quantdog.api.research.uuid.uuid4") as mock_uuid:
+    with patch("api.research.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value = uuid.UUID(fixed_uuid)
 
-        with patch("quantdog.api.research.queue.enqueue_job") as mock_enqueue:
+        with patch("api.research.queue.enqueue_job") as mock_enqueue:
             mock_enqueue.return_value = None
 
             response = client.post(
@@ -236,16 +236,16 @@ def test_research_runs_success_with_idempotency_key(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
 
     fixed_uuid = "12345678-1234-1234-1234-123456789abc"
-    with patch("quantdog.api.research.uuid.uuid4") as mock_uuid:
+    with patch("api.research.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value = uuid.UUID(fixed_uuid)
 
-        with patch("quantdog.api.research.queue.enqueue_job") as mock_enqueue:
+        with patch("api.research.queue.enqueue_job") as mock_enqueue:
             mock_enqueue.return_value = None
 
             response = client.post(
@@ -265,7 +265,7 @@ def test_research_runs_envelope_structure(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("RESEARCH_ENABLED", "true")
 
-    from quantdog.api import create_app
+    from api import create_app
 
     app = create_app()
     client = app.test_client()
