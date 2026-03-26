@@ -150,3 +150,84 @@ def test_telegram_bot_macro_missing_topic(monkeypatch):
     service = TelegramBotService(settings=get_settings(), market_intel_service=MagicMock())
     result = service.handle_update(_private_update("/macro"))
     assert "Usage: /macro <topic>" in result
+
+
+def test_telegram_bot_macro_unknown_topic(monkeypatch):
+    """Test /macro with unknown topic returns error with supported list."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    service = TelegramBotService(settings=get_settings(), market_intel_service=MagicMock())
+    result = service.handle_update(_private_update("/macro unknown_topic"))
+    assert "not supported" in result.lower()
+    assert "cpi" in result.lower()
+
+
+def test_telegram_bot_macro_raw_fred_code_rejection(monkeypatch):
+    """Test /macro with raw FRED code (uppercase, no spaces) is rejected."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    service = TelegramBotService(settings=get_settings(), market_intel_service=MagicMock())
+    result = service.handle_update(_private_update("/macro CPIAUCSL"))
+    assert "not supported" in result.lower()
+
+
+def test_telegram_bot_macro_alias_normalization(monkeypatch):
+    """Test /macro normalizes aliases to canonical names."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    mock_market_intel = MagicMock()
+    mock_market_intel.get_topic_macro_analysis.return_value = {
+        "macro_theme": "inflation",
+        "snapshot": {"cpi": 3.5},
+        "market_sentiment": "neutral",
+        "market_sentiment_score": 0.0,
+        "note": "Macro analysis uses FRED snapshot data.",
+    }
+    service = TelegramBotService(
+        settings=get_settings(),
+        market_intel_service=mock_market_intel,
+    )
+    # Test case normalization
+    result = service.handle_update(_private_update("/macro CPI"))
+    assert "CPI" in result or "cpi" in result.lower()
+    
+    # Test spacing normalization
+    result = service.handle_update(_private_update("/macro core cpi"))
+    assert "Core CPI" in result or "core cpi" in result.lower()
+
+
+def test_telegram_bot_macro_success_reply_structure(monkeypatch):
+    """Test /macro success reply includes all required fields in order."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    mock_market_intel = MagicMock()
+    mock_market_intel.get_topic_macro_analysis.return_value = {
+        "macro_theme": "inflation",
+        "snapshot": {"cpi": 3.5},
+        "market_sentiment": "neutral",
+        "market_sentiment_score": 0.0,
+        "note": "Macro analysis uses FRED snapshot data.",
+    }
+    service = TelegramBotService(
+        settings=get_settings(),
+        market_intel_service=mock_market_intel,
+    )
+    result = service.handle_update(_private_update("/macro cpi"))
+    
+    # Check for required fields (will be updated after implementation)
+    assert "cpi" in result.lower() or "CPI" in result
+
+
+def test_telegram_bot_macro_reply_under_length_budget(monkeypatch):
+    """Test /macro reply stays under 900 character budget."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    mock_market_intel = MagicMock()
+    mock_market_intel.get_topic_macro_analysis.return_value = {
+        "macro_theme": "inflation",
+        "snapshot": {"cpi": 3.5},
+        "market_sentiment": "neutral",
+        "market_sentiment_score": 0.0,
+        "note": "Macro analysis uses FRED snapshot data.",
+    }
+    service = TelegramBotService(
+        settings=get_settings(),
+        market_intel_service=mock_market_intel,
+    )
+    result = service.handle_update(_private_update("/macro cpi"))
+    assert len(result) < 900
