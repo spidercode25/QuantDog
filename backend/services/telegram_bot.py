@@ -223,7 +223,6 @@ class TelegramBotService:
             "fed rate": "Fed Rate",
             "dxy": "DXY",
             "yield spread": "Yield Spread",
-         
             "10y yield": "10Y Yield",
             "2y yield": "2Y Yield",
             "breakeven": "Breakeven",
@@ -233,6 +232,7 @@ class TelegramBotService:
 
         normalized_topic = topic.strip().lower()
 
+        # Reject raw FRED codes (uppercase, no spaces, >4 chars)
         if topic.isupper() and len(topic) > 4 and " " not in topic:
             return (
                 f"Topic '{topic}' is not supported.\n"
@@ -246,8 +246,56 @@ class TelegramBotService:
             )
 
         display_name = macro_aliases[normalized_topic]
-        return (
-            f"Macro indicator: {display_name}\n"
-            "Note: Detailed macro analysis will be available in a future update.\n"
-            "Current snapshot data can be accessed via the API directly."
-        )
+        
+        # Get enriched macro data
+        macro_data = self._market_intel_service.get_topic_macro_analysis(normalized_topic)
+        
+        # Check for errors
+        if macro_data.get("error") == "unknown_topic":
+            return (
+                f"Topic '{topic}' is not supported.\n"
+                "Supported topics: cpi, core cpi, fed rate, dxy, yield spread, 10y yield, 2y yield, breakeven, copper gold, tips 10y"
+            )
+        
+        # Build the reply with fixed sections
+        lines_list = [f"{display_name}"]
+        
+        # Current value
+        current = macro_data.get("current")
+        if current is not None:
+            lines_list.append(f"Current: {current:.2f}")
+        else:
+            lines_list.append("Current: unavailable")
+        
+        # Change
+        change = macro_data.get("change")
+        change_direction = macro_data.get("change_direction")
+        if change is not None and change_direction is not None:
+            lines_list.append(f"Change: {change_direction} {abs(change):.2f}")
+        else:
+            lines_list.append("Change: unavailable")
+        
+        # Interpretation
+        interpretation = macro_data.get("interpretation")
+        if interpretation:
+            lines_list.append(f"Interpretation: {interpretation}")
+        
+        # Market impact
+        market_impact = macro_data.get("market_impact")
+        if market_impact:
+            lines_list.append(f"Market impact: {market_impact}")
+        
+        # As of date
+        as_of = macro_data.get("as_of")
+        if as_of:
+            lines_list.append(f"As of: {as_of}")
+        
+        reply = "\n".join(lines_list)
+        
+        # Ensure reply is under 900 characters
+        if len(reply) >= 900:
+            # Truncate if necessary (shouldn't happen with current implementation)
+            reply = reply[:890] + "..."
+        
+        return reply
+
