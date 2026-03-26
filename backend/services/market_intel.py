@@ -59,6 +59,65 @@ class MarketIntelService:
                 return None
         return None
 
+    def _get_fred_latest_with_previous(self, series_id: str) -> dict[str, Any]:
+        """Get current and previous FRED observations with date."""
+        params: dict[str, Any] = {
+            "series_id": series_id,
+            "file_type": "json",
+            "sort_order": "desc",
+            "limit": 2,
+        }
+        if self.settings.fred_api_key:
+            params["api_key"] = self.settings.fred_api_key
+
+        url = f"{self.settings.fred_base_url.rstrip('/')}/series/observations"
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(url, params=params)
+                resp.raise_for_status()
+                payload = resp.json()
+
+            observations = payload.get("observations") if isinstance(payload, dict) else None
+            if not isinstance(observations, list) or not observations:
+                return {"current": None, "previous": None, "as_of": None}
+
+            # Get current observation
+            current_row = observations[0]
+            if not isinstance(current_row, dict):
+                return {"current": None, "previous": None, "as_of": None}
+
+            current_raw = current_row.get("value")
+            current_value = None
+            if isinstance(current_raw, (int, float)):
+                current_value = float(current_raw)
+            elif isinstance(current_raw, str):
+                if current_raw != "." and current_raw.strip() != "":
+                    try:
+                        current_value = float(current_raw)
+                    except ValueError:
+                        pass
+
+            as_of = current_row.get("date")
+
+            # Get previous observation if available
+            previous_value = None
+            if len(observations) > 1:
+                previous_row = observations[1]
+                if isinstance(previous_row, dict):
+                    previous_raw = previous_row.get("value")
+                    if isinstance(previous_raw, (int, float)):
+                        previous_value = float(previous_raw)
+                    elif isinstance(previous_raw, str):
+                        if previous_raw != "." and previous_raw.strip() != "":
+                            try:
+                                previous_value = float(previous_raw)
+                            except ValueError:
+                                pass
+
+            return {"current": current_value, "previous": previous_value, "as_of": as_of}
+        except Exception:
+            return {"current": None, "previous": None, "as_of": None}
+
     @staticmethod
     def _empty_macro_snapshot() -> dict[str, Any]:
         ids = {
@@ -128,19 +187,38 @@ class MarketIntelService:
         result: dict[str, Any] = {}
         for key, sid in ids.items():
             try:
-                result[key] = self._get_fred_latest(sid)
+                data = self._get_fred_latest_with_previous(sid)
+                result[key] = data["current"]
+                result[f"{key}_previous"] = data["previous"]
+                result[f"{key}_as_of"] = data["as_of"]
             except Exception:
                 result[key] = None
+                result[f"{key}_previous"] = None
+                result[f"{key}_as_of"] = None
 
         try:
-            copper = self._get_fred_latest("PCOPPUSDM")
-            gold = self._get_fred_latest("GOLDAMGBD228NLBM")
+            copper_data = self._get_fred_latest_with_previous("PCOPPUSDM")
+            gold_data = self._get_fred_latest_with_previous("GOLDAMGBD228NLBM")
+            copper = copper_data["current"]
+            gold = gold_data["current"]
             if copper is None or gold is None or gold == 0:
                 result["copper_gold_ratio"] = None
+                result["copper_gold_ratio_previous"] = None
+                result["copper_gold_ratio_as_of"] = None
             else:
                 result["copper_gold_ratio"] = round((copper * 14.5833) / float(gold), 4)
+                # Calculate previous ratio if we have previous values
+                copper_prev = copper_data["previous"]
+                gold_prev = gold_data["previous"]
+                if copper_prev is not None and gold_prev is not None and gold_prev != 0:
+                    result["copper_gold_ratio_previous"] = round((copper_prev * 14.5833) / float(gold_prev), 4)
+                else:
+                    result["copper_gold_ratio_previous"] = None
+                result["copper_gold_ratio_as_of"] = copper_data["as_of"]
         except Exception:
             result["copper_gold_ratio"] = None
+            result["copper_gold_ratio_previous"] = None
+            result["copper_gold_ratio_as_of"] = None
 
         MarketIntelService._macro_snapshot_cache = dict(result)
         MarketIntelService._macro_snapshot_cache_date = today
@@ -525,6 +603,120 @@ class MarketIntelService:
             "market_sentiment_score": intel["sentiment_score"],
             "note": "Macro analysis uses FRED snapshot data.",
         }
+
+    def get_topic_macro_analysis(self, topic: str) -> dict[str, Any]:
+        """Get enriched macro analysis for a specific topic.
+        
+        Args:
+            topic: The macro topic (e.g., "cpi", "fed rate", "dxy")
+            
+        Returns:
+            Dict with current, change, interpretation, impact, and as_of fields
+        """
+        # Map topic names to snapshot keys
+        topic_map = {
+            "cpi": "cpi",
+            "core cpi": "core_cpi",
+            "fed rate": "fed_rate",
+            "dxy": "dxy",
+            "yield spread": "yield_spread",
+            "10y yield": "yield_10y",
+            "2y yield": "yield_2y",
+            "breakeven": "breakeven",
+            "copper gold": "copper_gold_ratio",
+            "tips 10y": "tips_10y",
+        }
+        
+        normalized_topic = topic.strip().lower()
+        snapshot_key = topic_map.get(normalized_topic)
+        
+        if snapshot_key is None:
+            return {
+                "current": None,
+                "change": None,
+                "change_direction": None,
+                "interpretation": None,
+                "market_impact": None,
+                "as_of": None,
+                "error": "unknown_topic",
+            }
+        
+        # Get snapshot (use a dummy symbol since we just need the macro data)
+        snapshot = self._get_macro_snapshot("SPY")
+        
+        current = snapshot.get(snapshot_key)
+        previous = snapshot.get(f"{snapshot_key}_previous")
+        as_of = snapshot.get(f"{snapshot_key}_as_of")
+        
+        # Calculate change
+        change = None
+        change_direction = None
+        if current is not None and previous is not None and previous != 0:
+            change = current - previous
+            change_direction = "up" if change > 0 else "down" if change < 0 else "flat"
+        
+        # Generate interpretation based on topic and values
+        interpretation = self._get_topic_interpretation(normalized_topic, current, change)
+        
+        # Generate market impact
+        market_impact = self._get_topic_market_impact(normalized_topic, current, change)
+        
+        return {
+            "current": current,
+            "change": change,
+            "change_direction": change_direction,
+            "interpretation": interpretation,
+            "market_impact": market_impact,
+            "as_of": as_of,
+        }
+    
+    def _get_topic_interpretation(self, topic: str, current: float | None, change: float | None) -> str | None:
+        """Generate interpretation text for a topic."""
+        if current is None:
+            return "Data unavailable"
+        
+        interpretations = {
+            "cpi": f"Inflation at {current:.1f}%",
+            "core cpi": f"Core inflation at {current:.1f}%",
+            "fed rate": f"Fed funds rate at {current:.2f}%",
+            "dxy": f"Dollar index at {current:.1f}",
+            "yield spread": f"Yield spread at {current:.2f}%",
+            "10y yield": f"10-year yield at {current:.2f}%",
+            "2y yield": f"2-year yield at {current:.2f}%",
+            "breakeven": f"Breakeven inflation at {current:.2f}%",
+            "copper gold": f"Copper/gold ratio at {current:.4f}",
+            "tips 10y": f"10-year TIPS yield at {current:.2f}%",
+        }
+        
+        base = interpretations.get(topic, f"Value at {current}")
+        
+        if change is not None:
+            if change > 0:
+                return f"{base}, up {abs(change):.2f}"
+            elif change < 0:
+                return f"{base}, down {abs(change):.2f}"
+        
+        return base
+    
+    def _get_topic_market_impact(self, topic: str, current: float | None, change: float | None) -> str | None:
+        """Generate market impact text for a topic."""
+        if current is None:
+            return None
+        
+        impacts = {
+            "cpi": "Higher CPI may prompt rate hikes",
+            "core cpi": "Core inflation drives policy",
+            "fed rate": "Rate changes affect borrowing costs",
+            "dxy": "Strong dollar weighs on exports",
+            "yield spread": "Inverted spread signals recession risk",
+            "10y yield": "Yields move inversely to prices",
+            "2y yield": "Short rates reflect Fed policy",
+            "breakeven": "Breakeven shows inflation expectations",
+            "copper gold": "Ratio indicates growth sentiment",
+            "tips 10y": "Real yields reflect inflation-adjusted returns",
+        }
+        
+        return impacts.get(topic)
 
     def get_strategy(self, symbol: str, *, horizon: str = "1d", limit: int = 20) -> dict[str, Any]:
         technical = self.get_technical_analysis(symbol, horizon=horizon)
