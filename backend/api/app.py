@@ -14,6 +14,7 @@ from api.research import research_bp  # pyright: ignore[reportImplicitRelativeIm
 from api.market import market_bp  # pyright: ignore[reportImplicitRelativeImport]
 from api.stocks import stocks_bp  # pyright: ignore[reportImplicitRelativeImport]
 from api.telegram import telegram_bp  # pyright: ignore[reportImplicitRelativeImport]
+from api.candidate_pool import candidate_pool_bp  # pyright: ignore[reportImplicitRelativeImport]
 
 
 def create_app() -> Flask:
@@ -31,6 +32,7 @@ def create_app() -> Flask:
     app.register_blueprint(market_bp)
     app.register_blueprint(stocks_bp)
     app.register_blueprint(telegram_bp)
+    app.register_blueprint(candidate_pool_bp)
 
     @app.get("/health")
     def health():
