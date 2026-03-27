@@ -11,6 +11,12 @@ x-backend-base: &backend-base
     PYTHONUNBUFFERED: "1"
     RESEARCH_ENABLED: "false"
     DATABASE_URL: "postgresql://quantdog:quantdog@db:5432/quantdog"
+    TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-false}"
+    TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+    TELEGRAM_API_TOKEN: "${TELEGRAM_API_TOKEN:-}"
+    TELEGRAM_BASE_URL: "${TELEGRAM_BASE_URL:-https://api.telegram.org}"
+    TELEGRAM_POLL_TIMEOUT_SECONDS: "${TELEGRAM_POLL_TIMEOUT_SECONDS:-30}"
+    TELEGRAM_POLL_LIMIT: "${TELEGRAM_POLL_LIMIT:-100}"
   depends_on:
     - db
 
@@ -37,8 +43,28 @@ services:
       PYTHONUNBUFFERED: "1"
       RESEARCH_ENABLED: "false"
       DATABASE_URL: "postgresql://quantdog:quantdog@db:5432/quantdog"
+      TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-false}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_API_TOKEN: "${TELEGRAM_API_TOKEN:-}"
+      TELEGRAM_BASE_URL: "${TELEGRAM_BASE_URL:-https://api.telegram.org}"
+      TELEGRAM_POLL_TIMEOUT_SECONDS: "${TELEGRAM_POLL_TIMEOUT_SECONDS:-30}"
+      TELEGRAM_POLL_LIMIT: "${TELEGRAM_POLL_LIMIT:-100}"
       WORKER_NAME: "quantdog-worker"
       WORKER_HEARTBEAT_SECONDS: "10"
+
+  telegram-bot:
+    <<: *backend-base
+    command: ["python", "run_telegram_bot.py"]
+    profiles: ["telegram"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: "postgresql://quantdog:quantdog@db:5432/quantdog"
+      TELEGRAM_ENABLED: "true"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_API_TOKEN: "${TELEGRAM_API_TOKEN:-}"
+      TELEGRAM_BASE_URL: "${TELEGRAM_BASE_URL:-https://api.telegram.org}"
+      TELEGRAM_POLL_TIMEOUT_SECONDS: "${TELEGRAM_POLL_TIMEOUT_SECONDS:-30}"
+      TELEGRAM_POLL_LIMIT: "${TELEGRAM_POLL_LIMIT:-100}"
 
 volumes:
   quantdog_pg_data:

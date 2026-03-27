@@ -11,6 +11,8 @@ def load_env() -> None:
 
     This is intentionally opt-in (called by entrypoints) to avoid import-time
     side effects when `import quantdog` runs in verification.
+
+    Tests can set SKIP_DOTENV=true to prevent .env file loading.
     """
 
     try:
@@ -18,8 +20,15 @@ def load_env() -> None:
     except Exception:
         return
 
+    # Allow tests to skip .env file loading by setting SKIP_DOTENV=true
+    if os.getenv("SKIP_DOTENV", "").lower() in {"1", "true", "t", "yes", "y", "on"}:
+        return
+
     env_path = find_dotenv(usecwd=True)
     if env_path:
+        # Use override=False so existing environment variables take precedence.
+        # This allows tests to monkeypatch environment variables and have them
+        # override .env file values.
         load_dotenv(env_path, override=False)
 
 
@@ -71,6 +80,12 @@ class Settings:
     longbridge_app_key: str | None
     longbridge_app_secret: str | None
     longbridge_access_token: str | None
+    telegram_enabled: bool
+    telegram_bot_token: str | None
+    telegram_api_token: str | None
+    telegram_base_url: str
+    telegram_poll_timeout_seconds: int
+    telegram_poll_limit: int
 
 
 def get_settings() -> Settings:
@@ -126,6 +141,25 @@ def get_settings() -> Settings:
     longbridge_app_secret = os.getenv("LONGBRIDGE_APP_SECRET")
     longbridge_access_token = os.getenv("LONGBRIDGE_ACCESS_TOKEN")
 
+    telegram_enabled = _parse_bool(
+        "TELEGRAM_ENABLED", os.getenv("TELEGRAM_ENABLED"), default=False
+    )
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_api_token = os.getenv("TELEGRAM_API_TOKEN")
+    telegram_base_url = (
+        os.getenv("TELEGRAM_BASE_URL") or "https://api.telegram.org"
+    ).strip() or "https://api.telegram.org"
+    telegram_poll_timeout_seconds = _parse_int(
+        "TELEGRAM_POLL_TIMEOUT_SECONDS",
+        os.getenv("TELEGRAM_POLL_TIMEOUT_SECONDS"),
+        default=30,
+    )
+    telegram_poll_limit = _parse_int(
+        "TELEGRAM_POLL_LIMIT",
+        os.getenv("TELEGRAM_POLL_LIMIT"),
+        default=100,
+    )
+
     return Settings(
         api_host=api_host,
         api_port=api_port,
@@ -153,6 +187,12 @@ def get_settings() -> Settings:
         longbridge_app_key=longbridge_app_key,
         longbridge_app_secret=longbridge_app_secret,
         longbridge_access_token=longbridge_access_token,
+        telegram_enabled=telegram_enabled,
+        telegram_bot_token=telegram_bot_token,
+        telegram_api_token=telegram_api_token,
+        telegram_base_url=telegram_base_url,
+        telegram_poll_timeout_seconds=telegram_poll_timeout_seconds,
+        telegram_poll_limit=telegram_poll_limit,
     )
 
 

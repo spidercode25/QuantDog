@@ -115,10 +115,81 @@ LOG_DIR=/app/logs
 # Feature flags
 ENABLE_AI_ANALYSIS=false
 RESEARCH_ENABLED=false
+TELEGRAM_ENABLED=false
+
+# Telegram bot (optional)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BASE_URL=https://api.telegram.org
+TELEGRAM_POLL_TIMEOUT_SECONDS=30
+TELEGRAM_POLL_LIMIT=100
 
 # Provider keys (optional)
 FINNHUB_API_KEY=
 ```
+
+## Telegram Bot
+
+QuantDog can run a Telegram bot with long polling. V1 is intentionally small:
+
+- private chat only
+- supported commands: `/start`, `/help`, `/quote <symbol>`
+- outbound sends go through authenticated `POST /api/v1/telegram/messages`
+- no webhook setup; the bot uses `run_telegram_bot.py`
+
+Required env vars for the bot process:
+
+```bash
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=<your-bot-token>
+TELEGRAM_API_TOKEN=<shared-service-token>
+TELEGRAM_BASE_URL=https://api.telegram.org
+TELEGRAM_POLL_TIMEOUT_SECONDS=30
+TELEGRAM_POLL_LIMIT=100
+```
+
+Start the standard stack first, then enable the optional Telegram profile:
+
+```bash
+docker compose up -d --build
+docker compose exec -T api alembic upgrade head
+docker compose --profile telegram up -d telegram-bot
+```
+
+If you enable Telegram after the stack is already running, recreate `api` and `worker`
+too so they pick up the same `TELEGRAM_*` environment:
+
+```bash
+docker compose up -d --build api worker
+docker compose --profile telegram up -d telegram-bot
+```
+
+Run from the host Python environment instead:
+
+```bash
+cd backend
+python run_telegram_bot.py --once
+python run_telegram_bot.py
+```
+
+First-boot backlog rule:
+
+- on the first startup, the bot clears any existing webhook and drops pending Telegram updates
+- after bot state exists in the database, later restarts keep pending updates and resume from the last stored `update_id`
+
+Outbound send example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/telegram/messages \
+  -H "Authorization: Bearer $TELEGRAM_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: telegram-demo-1" \
+  -d '{
+    "chat_id": "123456789",
+    "text": "QuantDog alert: AAPL technical snapshot is ready"
+  }'
+```
+
+The outbound send endpoint is intended for trusted service-to-service callers only.
 
 ## Migrations (Alembic)
 
