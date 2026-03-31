@@ -126,6 +126,98 @@ def create_app() -> Flask:
                         },
                     }
                 },
+                "/api/v1/candidate-pools/latest": {
+                    "get": {
+                        "summary": "Latest daily candidate pool snapshot",
+                        "responses": {
+                            "200": {
+                                "description": "Latest candidate pool snapshot",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/CandidatePoolLatestResponse"}
+                                    }
+                                },
+                            },
+                            "404": {
+                                "description": "No candidate snapshot found",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/EnvelopeError"}
+                                    }
+                                },
+                            },
+                        },
+                    }
+                },
+                "/api/v1/telegram/messages": {
+                    "post": {
+                        "summary": "Queue telegram message delivery",
+                        "parameters": [
+                            {
+                                "in": "header",
+                                "name": "Authorization",
+                                "required": False,
+                                "schema": {"type": "string"},
+                                "description": "Bearer token using the Telegram API token.",
+                            },
+                            {
+                                "in": "header",
+                                "name": "X-Telegram-Api-Token",
+                                "required": False,
+                                "schema": {"type": "string"},
+                                "description": "Alternative header for the Telegram API token.",
+                            },
+                            {
+                                "in": "header",
+                                "name": "Idempotency-Key",
+                                "required": False,
+                                "schema": {"type": "string"},
+                                "description": "Optional idempotency token used to derive the dedupe key.",
+                            }
+                        ],
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["chat_id", "text"],
+                                        "properties": {
+                                            "chat_id": {"type": "integer"},
+                                            "text": {"type": "string"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "responses": {
+                            "202": {
+                                "description": "Telegram message enqueued",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/TelegramMessageEnqueueResponse"}
+                                    }
+                                },
+                            },
+                            "400": {
+                                "description": "Invalid request",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/EnvelopeError"}
+                                    }
+                                },
+                            },
+                            "401": {
+                                "description": "Unauthorized",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/EnvelopeError"}
+                                    }
+                                },
+                            },
+                        },
+                    }
+                },
             },
             "components": {
                 "schemas": {
@@ -168,6 +260,53 @@ def create_app() -> Flask:
                                 "type": "object",
                                 "required": ["status"],
                                 "properties": {"status": {"type": "string", "enum": ["ok"]}},
+                            },
+                        },
+                    },
+                    "CandidatePoolLatestResponse": {
+                        "type": "object",
+                        "required": ["code", "msg", "data"],
+                        "properties": {
+                            "code": {"type": "integer", "enum": [1]},
+                            "msg": {"type": "string", "enum": ["success"]},
+                            "data": {
+                                "type": "object",
+                                "required": ["candidates"],
+                                "properties": {
+                                    "candidates": {
+                                        "type": "array",
+                                        "items": {"$ref": "#/components/schemas/CandidatePoolMember"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "CandidatePoolMember": {
+                        "type": "object",
+                        "required": ["symbol", "rank", "rvol", "pct_change", "dollar_volume", "last_price"],
+                        "properties": {
+                            "symbol": {"type": "string"},
+                            "rank": {"type": "integer"},
+                            "rvol": {"type": "number"},
+                            "pct_change": {"type": "number"},
+                            "dollar_volume": {"type": "number"},
+                            "last_price": {"type": "number"},
+                        },
+                    },
+                    "TelegramMessageEnqueueResponse": {
+                        "type": "object",
+                        "required": ["code", "msg", "data"],
+                        "properties": {
+                            "code": {"type": "integer", "enum": [1]},
+                            "msg": {"type": "string"},
+                            "data": {
+                                "type": "object",
+                                "required": ["job_id", "chat_id", "dedupe_key"],
+                                "properties": {
+                                    "job_id": {"type": ["string", "null"]},
+                                    "chat_id": {"type": "integer"},
+                                    "dedupe_key": {"type": ["string", "null"]},
+                                },
                             },
                         },
                     },

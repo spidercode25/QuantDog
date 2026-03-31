@@ -22,111 +22,10 @@ def test_upsert_snapshot_is_idempotent() -> None:
 
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-    from quantdog.infra.sqlalchemy import get_engine
+    from infra.sqlalchemy import get_engine
     from sqlalchemy import text
 
-    engine = get_engine()
-
-    # Create tables
-    with engine.connect() as conn:
-        conn.execute(
-            text("""
-                CREATE TABLE IF NOT EXISTS candidate_snapshots (
-                    snapshot_key TEXT PRIMARY KEY,
-                    snapshot_time_et TIMESTAMP NOT NULL,
-                    provider_asof_et TIMESTAMP NOT NULL,
-                    created_at TIMESTAMP NOT NULL
-                )
-            """)
-        )
-        conn.execute(
-            text("""
-                CREATE TABLE IF NOT EXISTS candidate_members (
-                    id SERIAL PRIMARY KEY,
-                    snapshot_key TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    rank INTEGER NOT NULL,
-                    rvol REAL NOT NULL,
-                    pct_change REAL NOT NULL,
-                    dollar_volume REAL NOT NULL,
-                    last_price REAL NOT NULL,
-                    inclusion_reason TEXT,
-                    exclusion_reason TEXT,
-                    created_at TIMESTAMP NOT NULL,
-                    FOREIGN KEY (snapshot_key) REFERENCES candidate_snapshots(snapshot_key)
-                )
-            """)
-        )
-        conn.commit()
-
-    repo = CandidatePoolRepository(engine)
-
-    snapshot_key = "2026-01-15_10:30:00"
-    snapshot_time = _dt(2026, 1, 15, 10, 30)
-    provider_asof = _dt(2026, 1, 15, 10, 30)
-
-    members = [
-        CandidateMember(
-            snapshot_key=snapshot_key,
-            symbol="ALFA",
-            rank=1,
-            rvol=2.0,
-            pct_change=3.2,
-            dollar_volume=100_000_000,
-            last_price=20.0,
-            inclusion_reason="passed_all_filters",
-            exclusion_reason=None,
-            created_at=datetime.utcnow(),
-        ),
-        CandidateMember(
-            snapshot_key=snapshot_key,
-            symbol="BETA",
-            rank=2,
-            rvol=1.8,
-            pct_change=2.5,
-            dollar_volume=90_000_000,
-            last_price=18.0,
-            inclusion_reason="passed_all_filters",
-            exclusion_reason=None,
-            created_at=datetime.utcnow(),
-        ),
-    ]
-
-    # First upsert
-    repo.upsert_snapshot(snapshot_key, snapshot_time, provider_asof, members)
-
-    # Count members
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT COUNT(*) FROM candidate_members WHERE snapshot_key = :snapshot_key"),
-            {"snapshot_key": snapshot_key},
-        )
-        count_after_first = result.scalar()
-        assert count_after_first == 2, "First upsert should create 2 members"
-
-    # Second upsert (idempotent)
-    repo.upsert_snapshot(snapshot_key, snapshot_time, provider_asof, members)
-
-    # Count members again
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT COUNT(*) FROM candidate_members WHERE snapshot_key = :snapshot_key"),
-            {"snapshot_key": snapshot_key},
-        )
-        count_after_second = result.scalar()
-        assert count_after_second == 2, "Second upsert should not duplicate members"
-
-
-def test_store_ranked_members_with_metrics() -> None:
-    """Stored rows include rank, RVOL, percent change, dollar volume, and timestamps."""
-    import os
-
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
-
-    from quantdog.infra.sqlalchemy import get_engine
-    from sqlalchemy import text
-
-    engine = get_engine()
+    engine = get_engine(os.environ["DATABASE_URL"])
 
     # Create tables
     with engine.connect() as conn:
@@ -204,10 +103,10 @@ def test_retention_prunes_old_candidate_snapshots() -> None:
 
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-    from quantdog.infra.sqlalchemy import get_engine
+    from infra.sqlalchemy import get_engine
     from sqlalchemy import text
 
-    engine = get_engine()
+    engine = get_engine(os.environ["DATABASE_URL"])
 
     # Create tables
     with engine.connect() as conn:

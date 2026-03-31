@@ -165,10 +165,11 @@ def test_truncation_to_max_candidates() -> None:
 
     for idx in range(1, 25):
         symbol = f"S{idx:02d}"
+        baseline_volume = 800_000 + (idx * 5_000)
         intraday_rows.append(
-            {"symbol": symbol, "pct_change": 2.0, "last": 10.0 + idx, "cum_volume": 1_000_000 + (idx * 10_000)}
+            {"symbol": symbol, "pct_change": 2.0, "last": 10.0 + idx, "cum_volume": baseline_volume * 2}
         )
-        history_cum_volume_by_symbol[symbol] = [800_000 + (idx * 5_000)] * 7
+        history_cum_volume_by_symbol[symbol] = [baseline_volume] * 7
         instrument_metadata[symbol] = {"asset_type": "common_stock", "is_common_stock": True, "is_tradable": True}
 
     candidates = rank_top_gainer_candidates_at_snapshot(

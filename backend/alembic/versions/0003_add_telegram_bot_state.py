@@ -19,6 +19,10 @@ branch_labels = None
 depends_on = None
 
 
+def _timestamp_default() -> sa.TextClause:
+    return sa.text("CURRENT_TIMESTAMP")
+
+
 def upgrade() -> None:
     op.create_table(
         "telegram_bot_state",
@@ -33,13 +37,13 @@ def upgrade() -> None:
             "created_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("now()"),
+            server_default=_timestamp_default(),
         ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("now()"),
+            server_default=_timestamp_default(),
         ),
     )
 

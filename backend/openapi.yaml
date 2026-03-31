@@ -422,6 +422,81 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResearchRunResultResponse'
 
+  /api/v1/candidate-pools/latest:
+    get:
+      summary: Get latest daily candidate pool snapshot
+      description: Retrieve the latest persisted daily stock-selection snapshot.
+      responses:
+        '200':
+          description: Latest candidate pool snapshot retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidatePoolLatestResponse'
+        '404':
+          description: No candidate snapshot found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/telegram/messages:
+    post:
+      summary: Queue Telegram message
+      description: Enqueue a Telegram message for asynchronous delivery.
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+          required: false
+          description: Bearer token using the Telegram API token
+        - in: header
+          name: X-Telegram-Api-Token
+          schema:
+            type: string
+          required: false
+          description: Alternative header for the Telegram API token
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+          required: false
+          description: Optional idempotency key used to derive dedupe behavior
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chat_id
+                - text
+              properties:
+                chat_id:
+                  type: integer
+                text:
+                  type: string
+      responses:
+        '202':
+          description: Telegram message enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageEnqueueResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
 components:
   schemas:
     EnvelopeError:
@@ -936,3 +1011,49 @@ components:
                   type: array
                   items:
                     type: object
+
+    CandidatePoolMember:
+      type: object
+      properties:
+        symbol:
+          type: string
+        rank:
+          type: integer
+        rvol:
+          type: number
+        pct_change:
+          type: number
+        dollar_volume:
+          type: number
+        last_price:
+          type: number
+
+    CandidatePoolLatestResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                candidates:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CandidatePoolMember'
+
+    TelegramMessageEnqueueResponse:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                job_id:
+                  type: string
+                  nullable: true
+                chat_id:
+                  type: integer
+                dedupe_key:
+                  type: string
+                  nullable: true

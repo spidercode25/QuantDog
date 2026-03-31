@@ -29,12 +29,14 @@ JOB_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {}
 from jobs.ingestion import handle_ingestion_job
 from jobs.news_ingestion import handle_news_ingestion_job
 from jobs.research import handle_research_run
+from jobs.candidate_pool_close_run import handle_candidate_pool_close_run
 from jobs.telegram_delivery import handle_telegram_send_message
 
 # Register handlers
 JOB_HANDLERS["ingest_bars"] = handle_ingestion_job
 JOB_HANDLERS["ingest_news"] = handle_news_ingestion_job
 JOB_HANDLERS["research_run"] = handle_research_run
+JOB_HANDLERS["candidate_pool_close_run"] = handle_candidate_pool_close_run
 JOB_HANDLERS["telegram_send_message"] = handle_telegram_send_message
 
 

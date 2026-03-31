@@ -61,12 +61,13 @@ def ranking_happy_path_payload(snapshot_time_et: datetime) -> dict:
 
     # Fill with deterministic survivors to force truncation to 20
     for idx in range(1, 24):  # 23 additional valid names
+        baseline_volume = 800_000 + (idx * 5_000)
         intraday_rows.append(
             {
                 "symbol": f"S{idx:02d}",
                 "pct_change": 2.0 + (idx * 0.01),
                 "last": 10.0 + idx,
-                "cum_volume": 1_000_000 + (idx * 10_000),
+                "cum_volume": baseline_volume * 2,
             }
         )
 

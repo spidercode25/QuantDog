@@ -20,6 +20,38 @@ branch_labels = None
 depends_on = None
 
 
+def _dialect_name() -> str:
+    return op.get_bind().dialect.name
+
+
+def _timestamp_default() -> sa.TextClause:
+    return sa.text("CURRENT_TIMESTAMP")
+
+
+def _bool_default(value: bool) -> sa.TextClause:
+    if _dialect_name() == "sqlite":
+        return sa.text("1" if value else "0")
+    return sa.text("true" if value else "false")
+
+
+def _jobs_id_type():
+    if _dialect_name() == "sqlite":
+        return sa.Text()
+    return postgresql.UUID(as_uuid=True)
+
+
+def _json_type():
+    if _dialect_name() == "sqlite":
+        return sa.Text()
+    return postgresql.JSONB()
+
+
+def _json_default(value: str) -> sa.TextClause:
+    if _dialect_name() == "sqlite":
+        return sa.text(f"'{value}'")
+    return sa.text(f"'{value}'::jsonb")
+
+
 def upgrade() -> None:
     op.create_table(
         "instruments",
@@ -32,13 +64,13 @@ def upgrade() -> None:
             "active",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("true"),
+            server_default=_bool_default(True),
         ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("now()"),
+            server_default=_timestamp_default(),
         ),
     )
 
@@ -56,7 +88,7 @@ def upgrade() -> None:
             "adjusted",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("false"),
+            server_default=_bool_default(False),
         ),
         sa.Column("source", sa.Text(), nullable=False),
         sa.ForeignKeyConstraint(
@@ -74,13 +106,13 @@ def upgrade() -> None:
 
     op.create_table(
         "jobs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column("id", _jobs_id_type(), primary_key=True, nullable=False),
         sa.Column("kind", sa.Text(), nullable=False),
         sa.Column(
             "payload",
-            postgresql.JSONB(),
+            _json_type(),
             nullable=False,
-            server_default=sa.text("'{}'::jsonb"),
+            server_default=_json_default("{}"),
         ),
         sa.Column("state", sa.Text(), nullable=False),
         sa.Column("dedupe_key", sa.Text(), nullable=False),
@@ -104,23 +136,24 @@ def upgrade() -> None:
             "created_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("now()"),
+            server_default=_timestamp_default(),
         ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("now()"),
+            server_default=_timestamp_default(),
         ),
     )
 
-    op.create_index(
-        "uq_jobs_dedupe_key_queued_running",
-        "jobs",
-        ["dedupe_key"],
-        unique=True,
-        postgresql_where=sa.text("state IN ('queued','running')"),
-    )
+    if _dialect_name() == "postgresql":
+        op.create_index(
+            "uq_jobs_dedupe_key_queued_running",
+            "jobs",
+            ["dedupe_key"],
+            unique=True,
+            postgresql_where=sa.text("state IN ('queued','running')"),
+        )
 
 
 def downgrade() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import time
 
 
 def load_env() -> None:
@@ -52,6 +53,44 @@ def _parse_int(name: str, value: str | None, default: int) -> int:
         raise ValueError(f"Invalid integer for {name}: {value!r}") from e
 
 
+def _parse_float(name: str, value: str | None, default: float) -> float:
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return float(value)
+    except ValueError as e:
+        raise ValueError(f"Invalid float for {name}: {value!r}") from e
+
+
+def _parse_time(name: str, value: str | None, default: time) -> time:
+    if value is None or value.strip() == "":
+        return default
+
+    normalized = value.strip()
+    try:
+        hour_text, minute_text = normalized.split(":", 1)
+        parsed = time(hour=int(hour_text), minute=int(minute_text))
+    except Exception as e:
+        raise ValueError(f"Invalid time for {name}: {value!r}") from e
+
+    return parsed
+
+
+def _parse_optional_int64(name: str, value: str | None) -> int | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        parsed = int(value.strip())
+    except ValueError as e:
+        raise ValueError(f"Invalid integer for {name}: {value!r}") from e
+
+    min_int64 = -(2**63)
+    max_int64 = (2**63) - 1
+    if parsed < min_int64 or parsed > max_int64:
+        raise ValueError(f"Invalid integer for {name}: {value!r}")
+    return parsed
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     api_host: str
@@ -83,9 +122,20 @@ class Settings:
     telegram_enabled: bool
     telegram_bot_token: str | None
     telegram_api_token: str | None
+    telegram_group_id: int | None
     telegram_base_url: str
     telegram_poll_timeout_seconds: int
     telegram_poll_limit: int
+    candidate_pool_enabled: bool
+    candidate_pool_close_time_et: time
+    candidate_pool_stale_after_seconds: int
+    candidate_pool_min_gain_pct: float
+    candidate_pool_max_gain_pct: float
+    candidate_pool_min_rvol: float
+    candidate_pool_max_candidates: int
+    candidate_pool_min_dollar_volume: float
+    candidate_pool_require_common_stock: bool
+    candidate_pool_require_tradable: bool
 
 
 def get_settings() -> Settings:
@@ -146,6 +196,7 @@ def get_settings() -> Settings:
     )
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     telegram_api_token = os.getenv("TELEGRAM_API_TOKEN")
+    telegram_group_id = _parse_optional_int64("TELEGRAM_GROUP_ID", os.getenv("TELEGRAM_GROUP_ID"))
     telegram_base_url = (
         os.getenv("TELEGRAM_BASE_URL") or "https://api.telegram.org"
     ).strip() or "https://api.telegram.org"
@@ -158,6 +209,55 @@ def get_settings() -> Settings:
         "TELEGRAM_POLL_LIMIT",
         os.getenv("TELEGRAM_POLL_LIMIT"),
         default=100,
+    )
+
+    candidate_pool_enabled = _parse_bool(
+        "CANDIDATE_POOL_ENABLED", os.getenv("CANDIDATE_POOL_ENABLED"), default=False
+    )
+    candidate_pool_close_time_et = _parse_time(
+        "CANDIDATE_POOL_CLOSE_TIME_ET",
+        os.getenv("CANDIDATE_POOL_CLOSE_TIME_ET"),
+        default=time(hour=16, minute=5),
+    )
+    candidate_pool_stale_after_seconds = _parse_int(
+        "CANDIDATE_POOL_STALE_AFTER_SECONDS",
+        os.getenv("CANDIDATE_POOL_STALE_AFTER_SECONDS"),
+        default=120,
+    )
+    candidate_pool_min_gain_pct = _parse_float(
+        "CANDIDATE_POOL_MIN_GAIN_PCT",
+        os.getenv("CANDIDATE_POOL_MIN_GAIN_PCT"),
+        default=1.0,
+    )
+    candidate_pool_max_gain_pct = _parse_float(
+        "CANDIDATE_POOL_MAX_GAIN_PCT",
+        os.getenv("CANDIDATE_POOL_MAX_GAIN_PCT"),
+        default=5.0,
+    )
+    candidate_pool_min_rvol = _parse_float(
+        "CANDIDATE_POOL_MIN_RVOL",
+        os.getenv("CANDIDATE_POOL_MIN_RVOL"),
+        default=2.0,
+    )
+    candidate_pool_max_candidates = _parse_int(
+        "CANDIDATE_POOL_MAX_CANDIDATES",
+        os.getenv("CANDIDATE_POOL_MAX_CANDIDATES"),
+        default=20,
+    )
+    candidate_pool_min_dollar_volume = _parse_float(
+        "CANDIDATE_POOL_MIN_DOLLAR_VOLUME",
+        os.getenv("CANDIDATE_POOL_MIN_DOLLAR_VOLUME"),
+        default=10_000_000,
+    )
+    candidate_pool_require_common_stock = _parse_bool(
+        "CANDIDATE_POOL_REQUIRE_COMMON_STOCK",
+        os.getenv("CANDIDATE_POOL_REQUIRE_COMMON_STOCK"),
+        default=True,
+    )
+    candidate_pool_require_tradable = _parse_bool(
+        "CANDIDATE_POOL_REQUIRE_TRADABLE",
+        os.getenv("CANDIDATE_POOL_REQUIRE_TRADABLE"),
+        default=True,
     )
 
     return Settings(
@@ -190,9 +290,20 @@ def get_settings() -> Settings:
         telegram_enabled=telegram_enabled,
         telegram_bot_token=telegram_bot_token,
         telegram_api_token=telegram_api_token,
+        telegram_group_id=telegram_group_id,
         telegram_base_url=telegram_base_url,
         telegram_poll_timeout_seconds=telegram_poll_timeout_seconds,
         telegram_poll_limit=telegram_poll_limit,
+        candidate_pool_enabled=candidate_pool_enabled,
+        candidate_pool_close_time_et=candidate_pool_close_time_et,
+        candidate_pool_stale_after_seconds=candidate_pool_stale_after_seconds,
+        candidate_pool_min_gain_pct=candidate_pool_min_gain_pct,
+        candidate_pool_max_gain_pct=candidate_pool_max_gain_pct,
+        candidate_pool_min_rvol=candidate_pool_min_rvol,
+        candidate_pool_max_candidates=candidate_pool_max_candidates,
+        candidate_pool_min_dollar_volume=candidate_pool_min_dollar_volume,
+        candidate_pool_require_common_stock=candidate_pool_require_common_stock,
+        candidate_pool_require_tradable=candidate_pool_require_tradable,
     )
 
 
@@ -204,3 +315,23 @@ def validate_required_settings(settings: Settings) -> None:
             "Missing required setting: DATABASE_URL. "
             "Set it via environment variables or a local .env file."
         )
+
+    if settings.candidate_pool_enabled:
+        if settings.telegram_group_id is None:
+            raise ValueError(
+                "Missing required setting: TELEGRAM_GROUP_ID. "
+                "Set it to the Telegram group chat id for candidate pool delivery."
+            )
+        if not settings.telegram_enabled:
+            raise ValueError(
+                "Invalid candidate pool configuration: TELEGRAM_ENABLED must be true when CANDIDATE_POOL_ENABLED is true."
+            )
+        if not settings.telegram_bot_token:
+            raise ValueError(
+                "Missing required setting: TELEGRAM_BOT_TOKEN. "
+                "Candidate pool delivery requires Telegram bot credentials."
+            )
+        if not settings.longbridge_app_key or not settings.longbridge_app_secret or not settings.longbridge_access_token:
+            raise ValueError(
+                "Missing required Longbridge settings: LONGBRIDGE_APP_KEY, LONGBRIDGE_APP_SECRET, and LONGBRIDGE_ACCESS_TOKEN are required when CANDIDATE_POOL_ENABLED is true."
+            )

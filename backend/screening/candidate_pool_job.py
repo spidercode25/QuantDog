@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING
 
 from zoneinfo import ZoneInfo
 
+from config import get_settings
+from screening.candidate_pool_close_message import build_candidate_pool_close_message
+
 if TYPE_CHECKING:
     from screening.candidate_data_provider import CandidateDataProvider
+    from sqlalchemy.engine import Engine
 
 
 def run_candidate_pool_job(
@@ -21,6 +25,10 @@ def run_candidate_pool_job(
     half_days: set[date] | None = None,
     half_day_close_et: time | None = None,
     min_dollar_volume: float = 10_000_000,
+    min_rvol: float = 2.0,
+    require_common_stock: bool = True,
+    require_tradable: bool = True,
+    engine: Engine | None = None,
 ) -> str:
     """Run the candidate pool job for a given snapshot time.
 
@@ -35,6 +43,8 @@ def run_candidate_pool_job(
         half_days: Set of dates that are half-days
         half_day_close_et: Early close time on half-days
         min_dollar_volume: Minimum dollar volume threshold
+        min_rvol: Minimum RVOL threshold (default: 2.0 for 2x average volume)
+        engine: Optional SQLAlchemy engine for testing
 
     Returns:
         Snapshot key for the created snapshot
@@ -54,6 +64,8 @@ def run_candidate_pool_job(
         snapshot_time_et=snapshot_time_et,
         required_prior_sessions=required_prior_sessions,
     )
+    if not snapshots:
+        raise ValueError("Provider returned no snapshots for candidate pool close run")
 
     # Convert provider snapshots to screening service format
     intraday_rows = []
@@ -92,10 +104,23 @@ def run_candidate_pool_job(
         half_days=half_days,
         half_day_close_et=half_day_close_et,
         min_dollar_volume=min_dollar_volume,
+        min_rvol=min_rvol,
+        require_common_stock=require_common_stock,
+        require_tradable=require_tradable,
     )
+
+    from jobs.queue import has_job_with_dedupe_key
 
     # Create snapshot key
     snapshot_key = snapshot_time_et.strftime("%Y-%m-%d_%H:%M:%S")
+    repo = CandidatePoolRepository(engine=engine)
+    trading_date_et = snapshot_time_et.astimezone(ZoneInfo("America/New_York")).date()
+    telegram_dedupe_key = f"candidate-pool-close:{trading_date_et.isoformat()}"
+    should_enqueue_notification = not has_job_with_dedupe_key(
+        repo._engine,
+        dedupe_key=telegram_dedupe_key,
+        states=("queued", "running", "succeeded"),
+    )
 
     # Convert candidates to repository format
     members = [
@@ -109,19 +134,37 @@ def run_candidate_pool_job(
             last_price=c["last_price"],
             inclusion_reason="passed_all_filters",
             exclusion_reason=None,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
         for c in candidates
     ]
 
     # Persist snapshot
-    repo = CandidatePoolRepository()
     repo.upsert_snapshot(
         snapshot_key=snapshot_key,
         snapshot_time_et=snapshot_time_et,
         provider_asof_et=snapshots[0].provider_freshness_timestamp if snapshots else snapshot_time_et,
         members=members,
     )
+
+    settings = get_settings()
+    if should_enqueue_notification and settings.telegram_group_id is not None:
+        from jobs import queue
+
+        message_text = build_candidate_pool_close_message(
+            trading_date_et=trading_date_et,
+            snapshot_time_et=snapshot_time_et,
+            candidates=candidates,
+        )
+        queue.enqueue_job(
+            repo._engine,
+            kind="telegram_send_message",
+            payload={
+                "chat_id": settings.telegram_group_id,
+                "text": message_text,
+            },
+            dedupe_key=telegram_dedupe_key,
+        )
 
     return snapshot_key
 

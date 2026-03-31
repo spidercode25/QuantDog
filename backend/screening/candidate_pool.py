@@ -33,6 +33,9 @@ def rank_top_gainer_candidates_at_snapshot(
     half_days: set,
     half_day_close_et: time,
     min_dollar_volume: float,
+    min_rvol: float = 2.0,
+    require_common_stock: bool = True,
+    require_tradable: bool = True,
 ) -> list[dict]:
     """Rank top gainer candidates at a fixed intraday snapshot.
 
@@ -50,6 +53,7 @@ def rank_top_gainer_candidates_at_snapshot(
         half_days: Set of dates that are half-days
         half_day_close_et: Early close time on half-days
         min_dollar_volume: Minimum dollar volume threshold
+        min_rvol: Minimum RVOL threshold (default: 2.0 for 2x average volume)
 
     Returns:
         List of candidate dicts with symbol, rvol, pct_change, dollar_volume, last_price, rank
@@ -92,13 +96,19 @@ def rank_top_gainer_candidates_at_snapshot(
         is_tradable = metadata.get("is_tradable", True)
 
         # Apply instrument exclusion
-        if not is_common_stock or not is_tradable:
+        if require_common_stock and not is_common_stock:
+            continue
+        if require_tradable and not is_tradable:
             continue
 
         # Calculate RVOL
         current_volume = intraday["cum_volume"]
         avg_prior_volume = sum(history_volumes) / len(history_volumes)
         rvol = current_volume / avg_prior_volume if avg_prior_volume > 0 else 0.0
+
+        # Apply RVOL filter (must exceed 2x average volume)
+        if rvol < min_rvol:
+            continue
 
         # Calculate dollar volume
         last_price = intraday["last"]

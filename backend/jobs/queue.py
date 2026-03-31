@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import text
@@ -83,6 +83,28 @@ def enqueue_job(engine, *, kind: str, payload: dict[str, Any], dedupe_key: str |
     
     logger.info("Job enqueued: %s (%s)", job_id, kind)
     return job_id
+
+
+def has_job_with_dedupe_key(engine, *, dedupe_key: str, states: tuple[str, ...] | None = None) -> bool:
+    _ensure_jobs_table(engine)
+
+    with engine.connect() as conn:
+        if states:
+            state_params = {f"state_{idx}": state for idx, state in enumerate(states)}
+            state_clause = ", ".join(f":state_{idx}" for idx in range(len(states)))
+            result = conn.execute(
+                text(
+                    f"SELECT 1 FROM jobs WHERE dedupe_key = :dedupe_key AND state IN ({state_clause}) LIMIT 1"
+                ),
+                {"dedupe_key": dedupe_key, **state_params},
+            )
+        else:
+            result = conn.execute(
+                text("SELECT 1 FROM jobs WHERE dedupe_key = :dedupe_key LIMIT 1"),
+                {"dedupe_key": dedupe_key},
+            )
+
+        return result.fetchone() is not None
 
 
 def claim_job(engine, *, worker_name: str, max_attempts: int = 3) -> dict[str, Any] | None:
@@ -216,6 +238,7 @@ def requeue_stale_jobs(engine, *, stale_seconds: int = 300) -> int:
     Returns number of jobs requeued.
     """
     now = datetime.now(timezone.utc)
+    threshold = now - timedelta(seconds=stale_seconds)
     
     with engine.connect() as conn:
         result = conn.execute(
@@ -229,7 +252,7 @@ def requeue_stale_jobs(engine, *, stale_seconds: int = 300) -> int:
                 WHERE state = 'running'
                   AND heartbeat_at < :threshold
             """),
-            {"now": now, "threshold": datetime.now(timezone.utc).timestamp() - stale_seconds}
+            {"now": now, "threshold": threshold}
         )
         conn.commit()
     

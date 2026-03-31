@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -48,6 +48,14 @@ class CandidatePoolRepository:
                 raise ValueError("Either engine or database_url must be provided")
             self._engine = get_engine(database_url)
 
+    def snapshot_exists(self, snapshot_key: str) -> bool:
+        with self._engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT 1 FROM candidate_snapshots WHERE snapshot_key = :snapshot_key LIMIT 1"),
+                {"snapshot_key": snapshot_key},
+            )
+            return result.fetchone() is not None
+
     def upsert_snapshot(
         self,
         snapshot_key: str,
@@ -71,7 +79,7 @@ class CandidatePoolRepository:
                     "snapshot_key": snapshot_key,
                     "snapshot_time_et": snapshot_time_et,
                     "provider_asof_et": provider_asof_et,
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(UTC),
                 },
             )
 
@@ -104,7 +112,7 @@ class CandidatePoolRepository:
                         "last_price": member.last_price,
                         "inclusion_reason": member.inclusion_reason,
                         "exclusion_reason": member.exclusion_reason,
-                        "created_at": datetime.utcnow(),
+                        "created_at": datetime.now(UTC),
                     },
                 )
 
@@ -124,11 +132,17 @@ class CandidatePoolRepository:
             row = result.fetchone()
             if row is None:
                 return None
+
+            # Convert string timestamps to datetime if needed
+            snapshot_time_et = row[1] if isinstance(row[1], datetime) else datetime.fromisoformat(row[1])
+            provider_asof_et = row[2] if isinstance(row[2], datetime) else datetime.fromisoformat(row[2])
+            created_at = row[3] if isinstance(row[3], datetime) else datetime.fromisoformat(row[3])
+
             return CandidateSnapshot(
                 snapshot_key=row[0],
-                snapshot_time_et=row[1],
-                provider_asof_et=row[2],
-                created_at=row[3],
+                snapshot_time_et=snapshot_time_et,
+                provider_asof_et=provider_asof_et,
+                created_at=created_at,
             )
 
     def get_snapshot_members(self, snapshot_key: str) -> list[CandidateMember]:
@@ -164,7 +178,7 @@ class CandidatePoolRepository:
     def prune_old_snapshots(self, keep_days: int = 30) -> int:
         """Delete snapshots older than keep_days and their members."""
         with self._engine.connect() as conn:
-            cutoff = datetime.utcnow() - timedelta(days=keep_days)
+            cutoff = datetime.now(UTC) - timedelta(days=keep_days)
             result = conn.execute(
                 text("""
                     DELETE FROM candidate_snapshots
